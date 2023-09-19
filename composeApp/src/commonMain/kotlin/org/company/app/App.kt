@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,13 +52,29 @@ internal fun App(
     Navigator(ScreenA())
 }
 
-class ScreenA : Screen {
+
+
+interface AppScreen : Screen {
+    fun <T> onResult(obj: T) {}
+}
+
+fun <T> Navigator.popWithResult(obj: T) {
+    val prev = if (items.size < 2) null else items[items.size - 2] as? AppScreen
+    prev?.onResult(obj)
+    pop()
+}
+
+class ScreenA : AppScreen {
     var txt = "Init text"
-    val listener: (String) -> Unit = { txt = it }
+
+    override fun <T> onResult(obj: T) {
+        txt = obj as String
+    }
 
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -70,7 +87,7 @@ class ScreenA : Screen {
             )
             Button(
                 onClick = {
-                    navigator.push(ScreenB(listener))
+                    navigator.push(ScreenB())
                 },
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             ) {
@@ -80,9 +97,7 @@ class ScreenA : Screen {
     }
 }
 
-class ScreenB(
-    val result: (String) -> Unit
-) : Screen {
+class ScreenB : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
@@ -91,7 +106,7 @@ class ScreenB(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            var txt by remember { mutableStateOf("") }
+            var txt by rememberSaveable { mutableStateOf("") }
             OutlinedTextField(
                 value = txt,
                 onValueChange = { txt = it },
@@ -99,8 +114,7 @@ class ScreenB(
             )
             Button(
                 onClick = {
-                    result(txt)
-                    navigator.pop()
+                    navigator.popWithResult(txt)
                 },
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             ) {
